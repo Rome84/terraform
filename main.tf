@@ -1,32 +1,41 @@
-# Create a new instance of the latest Ubuntu 14.04 on an
-# t2.micro node with an AWS Tag naming it "HelloWorld"
+# Bob Aiello
+# Terra form example
+terraform {
+  required_version = ">= 0.9, < 11.9"
+}
+
 provider "aws" {
   region = "us-east-1"
 }
 
-data "aws_ami" "ubuntu" {
-  most_recent = true
+resource "aws_instance" "example" {
+  ami                    = "ami-40d28157"
+  instance_type          = "t2.micro"
+  vpc_security_group_ids = ["${aws_security_group.instance.id}"]
 
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-
-  owners = ["099720109477"] # Canonical
-}
-
-resource "aws_instance" "web" {
-  ami           = "${data.aws_ami.ubuntu.id}"
-  instance_type = "t2.micro"
+  user_data = <<-EOF
+              #!/bin/bash
+              echo "Hello, World" > index.html
+              nohup busybox httpd -f -p 8080 &
+              EOF
 
   tags {
-    Name = "Server101"
-    Name = "Server102"
-    Name = "Server103"
+    Name = "test1"
   }
 }
+
+resource "aws_security_group" "instance" {
+  name = "terraform-example-instance"
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+output "public_ip" {
+  value = "${aws_instance.example.public_ip}"
+}
+
